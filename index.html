@@ -1,0 +1,295 @@
+import React, { useState } from 'react';
+import { ArrowRight, ArrowLeft, RefreshCw, Ruler, MousePointerClick } from 'lucide-react';
+
+const GeometrySolver = () => {
+  const [step, setStep] = useState(0);
+
+  // Constants for rendering
+  const R = 50; // Visual radius in pixels
+  const D = R * 2; // Visual diameter
+  const OFFSET_X = 60; // Padding left
+  const OFFSET_Y = 80; // Padding top
+  
+  // Real math values
+  const REAL_D = 4;
+  const REAL_R = 2;
+
+  // The steps for the interactive guide
+  const steps = [
+    {
+      title: "題目觀察",
+      description: "我們有 5 個大小相同的圓，直徑為 4cm。它們被一個長方形 TUVW 緊緊包圍。",
+      highlight: []
+    },
+    {
+      title: "找出半徑",
+      description: "首先，圓的直徑是 4cm，所以半徑是 2cm。",
+      formula: "r = 4 ÷ 2 = 2 cm",
+      highlight: ["radius"]
+    },
+    {
+      title: "計算闊度 (短邊)",
+      description: "長方形的闊度剛好等於圓形的直徑。",
+      formula: "闊度 = 4 cm",
+      highlight: ["width"]
+    },
+    {
+      title: "拆解長度 - 關鍵發現",
+      description: "觀察圓心 A, B, C, D, E。因為圓周穿過鄰居的圓心，所以兩個圓心之間的距離剛好是 1 個半徑 (2cm)。",
+      formula: "圓心間距 = 2 cm",
+      highlight: ["centers"]
+    },
+    {
+      title: "計算總長度 (長邊)",
+      description: "總長度 = 左邊半徑 + 4段圓心距離 + 右邊半徑。",
+      formula: "2 + (2 + 2 + 2 + 2) + 2 = 12 cm",
+      highlight: ["length"]
+    }
+  ];
+
+  const currentHighlight = steps[step].highlight;
+
+  // Function to render circles
+  const renderCircles = () => {
+    const circles = [];
+    const labels = ['A', 'B', 'C', 'D', 'E'];
+    
+    for (let i = 0; i < 5; i++) {
+      // Each center is separated by R (not 2R, because they overlap to center)
+      const cx = OFFSET_X + R + (i * R); 
+      const cy = OFFSET_Y + R;
+      
+      circles.push(
+        <g key={`circle-${i}`} className="transition-all duration-500 ease-in-out">
+          {/* The Circle */}
+          <circle
+            cx={cx}
+            cy={cy}
+            r={R}
+            fill="rgba(59, 130, 246, 0.1)" // blue-500 with opacity
+            stroke="#3B82F6"
+            strokeWidth="2"
+            className="transition-all duration-300"
+          />
+          
+          {/* The Center Point */}
+          <circle cx={cx} cy={cy} r="4" fill="#EF4444" />
+          
+          {/* Label */}
+          <text 
+            x={cx} 
+            y={cy - 10} 
+            textAnchor="middle" 
+            fill="#EF4444" 
+            fontSize="14" 
+            fontWeight="bold"
+          >
+            {labels[i]}
+          </text>
+        </g>
+      );
+    }
+    return circles;
+  };
+
+  // Function to render dimension lines based on step
+  const renderDimensions = () => {
+    // Width (Height of Rect)
+    if (currentHighlight.includes("width")) {
+      return (
+        <g className="animate-fade-in">
+          <line x1={OFFSET_X - 20} y1={OFFSET_Y} x2={OFFSET_X - 20} y2={OFFSET_Y + D} stroke="#10B981" strokeWidth="2" markerEnd="url(#arrowhead)" markerStart="url(#arrowhead)" />
+          <text x={OFFSET_X - 35} y={OFFSET_Y + R} fill="#10B981" fontWeight="bold" textAnchor="middle" style={{writingMode: "vertical-rl"}}>4 cm</text>
+        </g>
+      );
+    }
+    return null;
+  };
+
+  // Render the bottom length breakdown
+  const renderLengthBreakdown = () => {
+    if (!currentHighlight.includes("centers") && !currentHighlight.includes("length")) return null;
+
+    const segments = [];
+    // Start x for the first segment
+    let startX = OFFSET_X;
+    
+    // We have 6 segments of length R (Left edge -> A -> B -> C -> D -> E -> Right edge)
+    const segmentLabels = ["半徑", "A-B", "B-C", "C-D", "D-E", "半徑"];
+    
+    for (let i = 0; i < 6; i++) {
+      const x1 = startX + (i * R);
+      const x2 = x1 + R;
+      const y = OFFSET_Y + D + 30; // Below the rectangle
+
+      segments.push(
+        <g key={`seg-${i}`} className="animate-fade-in delay-100">
+          {/* Bracket or Line */}
+          <line x1={x1 + 2} y1={y} x2={x2 - 2} y2={y} stroke="#F59E0B" strokeWidth="2" />
+          <line x1={x1 + 2} y1={y - 5} x2={x1 + 2} y2={y + 5} stroke="#F59E0B" strokeWidth="2" />
+          <line x1={x2 - 2} y1={y - 5} x2={x2 - 2} y2={y + 5} stroke="#F59E0B" strokeWidth="2" />
+          
+          {/* Value */}
+          <text x={x1 + R/2} y={y + 20} textAnchor="middle" fill="#F59E0B" fontSize="12" fontWeight="bold">2cm</text>
+          
+          {/* Description (only show in 'centers' step to avoid clutter) */}
+          {currentHighlight.includes("centers") && (
+            <text x={x1 + R/2} y={y + 40} textAnchor="middle" fill="#9CA3AF" fontSize="10">{segmentLabels[i]}</text>
+          )}
+        </g>
+      );
+    }
+
+    // Total length text
+    if (currentHighlight.includes("length")) {
+      return (
+        <g>
+          {segments}
+          <text x={OFFSET_X + (3 * R)} y={OFFSET_Y + D + 70} textAnchor="middle" fill="#10B981" fontSize="20" fontWeight="bold" className="animate-bounce">
+            總長度 = 12 cm
+          </text>
+        </g>
+      );
+    }
+
+    return segments;
+  };
+
+  // Render single radius demonstration
+  const renderRadiusDemo = () => {
+    if (currentHighlight.includes("radius")) {
+      const cx = OFFSET_X + R; // Center of Circle A
+      const cy = OFFSET_Y + R;
+      return (
+        <g className="animate-pulse">
+           {/* Diameter Line */}
+           <line x1={cx} y1={cy - R} x2={cx} y2={cy + R} stroke="#8B5CF6" strokeWidth="4" opacity="0.3" />
+           {/* Radius Line */}
+           <line x1={cx} y1={cy} x2={cx + R} y2={cy} stroke="#EF4444" strokeWidth="3" markerEnd="url(#arrowhead)" />
+           <text x={cx + R/2} y={cy - 10} textAnchor="middle" fill="#EF4444" fontWeight="bold">r=2</text>
+        </g>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-4 font-sans">
+      
+      {/* Header */}
+      <div className="bg-white p-6 rounded-2xl shadow-lg w-full max-w-4xl mb-6 text-center border-l-4 border-blue-500">
+        <h1 className="text-2xl font-bold text-slate-800 mb-2 flex items-center justify-center gap-2">
+          <Ruler className="text-blue-500" />
+          長方形內的圓形問題
+        </h1>
+        <p className="text-slate-600">視覺化數學解題助手</p>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex flex-col lg:flex-row gap-6 w-full max-w-5xl">
+        
+        {/* Left: Visualization */}
+        <div className="flex-1 bg-white rounded-2xl shadow-lg p-4 flex items-center justify-center overflow-hidden min-h-[400px]">
+          <svg width="100%" height="350" viewBox="0 0 450 300" className="select-none">
+            <defs>
+              <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
+              </marker>
+            </defs>
+
+            {/* The Rectangle TUVW */}
+            {/* Width is 6 * R, Height is 2 * R */}
+            <rect 
+              x={OFFSET_X} 
+              y={OFFSET_Y} 
+              width={R * 6} 
+              height={R * 2} 
+              fill="none" 
+              stroke="#334155" 
+              strokeWidth="4" 
+            />
+            {/* Corners Labels */}
+            <text x={OFFSET_X - 15} y={OFFSET_Y} fontSize="16" fontWeight="bold" fill="#334155">T</text>
+            <text x={OFFSET_X + (R*6) + 5} y={OFFSET_Y} fontSize="16" fontWeight="bold" fill="#334155">U</text>
+            <text x={OFFSET_X + (R*6) + 5} y={OFFSET_Y + (R*2) + 15} fontSize="16" fontWeight="bold" fill="#334155">V</text>
+            <text x={OFFSET_X - 15} y={OFFSET_Y + (R*2) + 15} fontSize="16" fontWeight="bold" fill="#334155">W</text>
+
+            {/* Circles */}
+            {renderCircles()}
+
+            {/* Interactive Layers */}
+            {renderRadiusDemo()}
+            {renderDimensions()}
+            {renderLengthBreakdown()}
+
+          </svg>
+        </div>
+
+        {/* Right: Controls & Explanation */}
+        <div className="w-full lg:w-80 flex flex-col gap-4">
+          
+          {/* Step Card */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 flex-1 flex flex-col justify-between transition-all duration-300">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <span className="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full">
+                  Step {step + 1} / {steps.length}
+                </span>
+                {step === steps.length - 1 && <span className="text-green-500 text-sm font-bold animate-pulse">完成！</span>}
+              </div>
+              
+              <h2 className="text-xl font-bold text-slate-800 mb-3">{steps[step].title}</h2>
+              <p className="text-slate-600 mb-4 leading-relaxed">
+                {steps[step].description}
+              </p>
+              
+              {steps[step].formula && (
+                <div className="bg-slate-100 p-3 rounded-lg border border-slate-200">
+                  <p className="text-center font-mono text-lg font-bold text-blue-600">
+                    {steps[step].formula}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Controls */}
+            <div className="mt-8 flex gap-3">
+              <button 
+                onClick={() => setStep(Math.max(0, step - 1))}
+                disabled={step === 0}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${
+                  step === 0 
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                    : 'bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                }`}
+              >
+                <ArrowLeft size={18} /> 上一步
+              </button>
+              
+              <button 
+                onClick={() => setStep(Math.min(steps.length - 1, step + 1))}
+                disabled={step === steps.length - 1}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold shadow-md transition-all ${
+                  step === steps.length - 1
+                    ? 'bg-green-500 text-white cursor-default'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg'
+                }`}
+              >
+                {step === steps.length - 1 ? '完成' : '下一步'} <ArrowRight size={18} />
+              </button>
+            </div>
+          </div>
+
+          <button 
+            onClick={() => setStep(0)}
+            className="flex items-center justify-center gap-2 text-slate-400 hover:text-slate-600 text-sm py-2"
+          >
+            <RefreshCw size={14} /> 重新開始
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default GeometrySolver;
